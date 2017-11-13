@@ -1,0 +1,24 @@
+#
+# example logstash filter
+#
+
+filter {
+  if [message] ~= "snmp_object" {
+    kv { }
+
+    mutate {
+      replace => {
+         "host" => "%{snmp_hostname}"
+      }
+      convert => {
+        "value_float" => "float"
+        "value_int" => "integer"
+      }
+      remove_field => [
+          "message", "msg", "facility_label", "severity_label", "logsource", "priority", "facility", "severity"
+      ]
+    }
+  }
+}
+
+
