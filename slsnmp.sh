@@ -2,6 +2,7 @@
 #
 # SLSNMP
 #   Fetches syslog objects and outputs to stdout, for use with syslogging
+#   Now also with MQTT
 #   https://github.com/mada3k/slsnmp
 #
 SNMP_COMMUNITY="public"
@@ -18,10 +19,16 @@ rc=0
 source slsnmp.conf
 
 
-function log() {
+function log()
+{
     # testmode
-    if [ "$TESTMODE" == "1" ]; then
+    if [ "$DEBUG" == "1" ]; then
         echo $out
+        return
+    fi
+
+    # testmode
+    if [ "$SYSLOG_USE" != "1" ]; then
         return
     fi
 
@@ -47,6 +54,18 @@ function log() {
 }
 
 
+function mqtt_pub()
+{
+    MQ_PATH=`echo $1|sed 's/\./\//g'`
+    MQ_TOPIC=`echo ${MQTT_TOPIC_ROOT}/${NODENAME}/${MQ_PATH}|sed 's/"//g'`
+    mosquitto_pub -h ${MQTT_HOST} -t ${MQ_TOPIC} -m "${value}"
+
+    if [ "$DEBUG" == "1" ]; then
+        echo "pub: ${MQ_TOPIC} = ${value}"
+    fi
+}
+
+
 for host in `cat ${SNMP_NODES}`; do
     # fetch hostname
     NODENAME=`snmpget -v2c -Oqv -c ${SNMP_COMMUNITY} ${host} "${SNMP_OID_HOSTNAME}"`
@@ -69,6 +88,11 @@ for host in `cat ${SNMP_NODES}`; do
 
             # log! 
             log
+
+            # mqtt pub
+            if [ "${MQTT_USE}" == "1" ]; then
+                mqtt_pub "${SNMP_OID_KEY[$foid]}" "${value}"
+            fi
 
             # sleep
             sleep ${SNMP_GET_DELAY}
