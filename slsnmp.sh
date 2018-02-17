@@ -15,7 +15,7 @@ UNAME=`uname -s`
 out=""
 rc=0
 
-
+# load config
 source slsnmp.conf
 
 
@@ -43,30 +43,29 @@ function log()
         if [ -f "/etc/redhat-version" ]; then
             echo $out|logger -t slsnmp -p ${SYSLOG_PRI}     # doesn't support remote logging
         else
-            echo $out|logger -t slsnmp -p ${SYSLOG_PRI} -d -n ${SYSLOG_HOST} -P ${SYSLOG_PORT} 
+            echo $out|logger -t slsnmp -p ${SYSLOG_PRI} -d -n ${SYSLOG_HOST} -P ${SYSLOG_PORT}
         fi
     fi
 
     # FreeBSD
     if [ "${UNAME}" == "FreeBSD" ]; then
-        echo $out|logger -t slsnmp -p ${SYSLOG_PRI} -h ${SYSLOG_HOST} -P ${SYSLOG_PORT} 
-    fi 
+        echo $out|logger -t slsnmp -p ${SYSLOG_PRI} -h ${SYSLOG_HOST} -P ${SYSLOG_PORT}
+    fi
 }
 
 
 function mqtt_pub()
 {
-    MQ_PATH=`echo $1|sed 's/\./\//g'`
-    MQ_TOPIC=`echo ${MQTT_TOPIC_ROOT}/${NODENAME}/${MQ_PATH}|sed 's/"//g'`
-    mosquitto_pub -h ${MQTT_HOST} -t ${MQ_TOPIC} -m "${value}"
+    MQ_TOPIC=`echo ${MQTT_TOPIC_ROOT}/${NODENAME}/$1|sed 's/"//g'`
+    mosquitto_pub -h ${MQTT_HOST} -t "${MQ_TOPIC}" -m "$2"
 
     if [ "$DEBUG" == "1" ]; then
-        echo "pub: ${MQ_TOPIC} = ${value}"
+        echo "mqtt_pub: ${MQ_TOPIC} => $2"
     fi
 }
 
 
-for host in `cat ${SNMP_NODES}`; do
+for host in `cat ${NODES}`; do
     # fetch hostname
     NODENAME=`snmpget -v2c -Oqv -c ${SNMP_COMMUNITY} ${host} "${SNMP_OID_HOSTNAME}"`
     rc=$?
@@ -86,12 +85,12 @@ for host in `cat ${SNMP_NODES}`; do
             # build message
             out="snmp_hostname=${NODENAME} snmp_object=${SNMP_OID_KEY[$foid]} value_${SNMP_OID_TYPE[$foid]}=${value}"
 
-            # log! 
+            # log!
             log
 
             # mqtt pub
             if [ "${MQTT_USE}" == "1" ]; then
-                mqtt_pub "${SNMP_OID_KEY[$foid]}" "${value}"
+                mqtt_pub "${SNMP_OID_MQTT[$foid]}" "${value}"
             fi
 
             # sleep
