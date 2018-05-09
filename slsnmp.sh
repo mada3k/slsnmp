@@ -83,7 +83,7 @@ for host in `cat ${NODES}`; do
             fi
 
             # build message
-            out="snmp_hostname=${NODENAME} snmp_object=${SNMP_OID_KEY[$foid]} value_${SNMP_OID_TYPE[$foid]}=${value}"
+            out="host=\"${host}\" snmp_hostname=${NODENAME} snmp_object=${SNMP_OID_KEY[$foid]} value_${SNMP_OID_TYPE[$foid]}=${value}"
 
             # log!
             log
